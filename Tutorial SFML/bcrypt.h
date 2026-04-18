@@ -11,4 +11,4 @@ namespace bcrypt {
 
 }
 
-#endif // BCRYPT_H
+#endif 

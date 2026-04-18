@@ -1,6 +1,8 @@
 #ifndef _NODE_BLF_H_
 #define _NODE_BLF_H_
 
+//Hashear contraseñas
+
 #include <sys/types.h>
 
 /* Solaris compatibility */
