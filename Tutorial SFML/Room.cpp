@@ -13,5 +13,5 @@ void Room::AddPlayer(Client* client)
 
 const std::vector<Client*>& Room::GetPlayers() const { return _players; }
 
-std::string Room::GetID()       const { return _id; }
-int         Room::GetMaxPlayers() const { return _maxPlayers; }
+std::string Room::GetID() const { return _id; }
+int Room::GetMaxPlayers() const { return _maxPlayers; }

@@ -7,10 +7,10 @@
 #define USERNAME "Ivan"
 #define PASSWORD "1234"
 
-static constexpr int RANKING_POINTS_1ST  = 4;
-static constexpr int RANKING_POINTS_2ND  = 2;
-static constexpr int RANKING_POINTS_3RD  = 1;
-static constexpr int RANKING_POINTS_LAST = 0;
+static constexpr int RANKING_POINTS_1ST		= 4;
+static constexpr int RANKING_POINTS_2ND		= 2;
+static constexpr int RANKING_POINTS_3RD		= 1;
+static constexpr int RANKING_POINTS_LAST	= 0;
 
 DataBaseManager::DataBaseManager()
 {
@@ -57,13 +57,12 @@ void DataBaseManager::ConnectDatabase()
 
 bool DataBaseManager::RegisterUser(const std::string& nickname, const std::string& password)
 {
-	// campos vacíos
 	if (nickname.empty() || password.empty()) {
 		std::cerr << "[Server] Nickname or password empty on field \n";
 		return false;
 	}
 
-	try {
+	try { //Registrar contraseña y nickname
 		std::string query = "INSERT INTO users(nickname, password) VALUES (?,?)";
 		std::string hashedPassword = bcrypt::generateHash(password);
 		std::unique_ptr<sql::PreparedStatement> stmt(_con->prepareStatement(query));
@@ -86,7 +85,6 @@ bool DataBaseManager::RegisterUser(const std::string& nickname, const std::strin
 
 bool DataBaseManager::LoginUser(const std::string& nickname, const std::string& password)
 {
-	// campos vacíos
 	if (nickname.empty() || password.empty()) {
 		std::cerr << "[Server] Nickname or password empty on field \n";
 		return false;
@@ -99,7 +97,7 @@ bool DataBaseManager::LoginUser(const std::string& nickname, const std::string& 
 
 		if (res->next()) {
 			std::string storedHash = res->getString("password"); 
-			if (bcrypt::validatePassword(password, storedHash)) { 
+			if (bcrypt::validatePassword(password, storedHash)) { //Si la contraseña ya traducida coincide, inicia sesion
 				std::cout << "[Server] Correct login for user: " << nickname << std::endl;
 				return true;
 			}
@@ -158,11 +156,11 @@ std::vector<RankingEntry> DataBaseManager::GetTopTenPlayers()
 		while (res->next())
 		{
 			RankingEntry e;
-			e.rank     = rank++;
+			e.rank = rank++;
 			e.nickname = res->getString("nickname");
-			e.points   = res->getInt("points");
-			e.wins     = res->getInt("wins");
-			e.losses   = res->getInt("losses");
+			e.points = res->getInt("points");
+			e.wins = res->getInt("wins");
+			e.losses = res->getInt("losses");
 			entries.push_back(e);
 		}
 	}
@@ -187,9 +185,9 @@ bool DataBaseManager::GetPlayerRanking(const std::string& nickname, int& outRank
 
 		if (res->next())
 		{
-			outRank   = res->getInt("rank");
+			outRank = res->getInt("rank");
 			outPoints = res->getInt("points");
-			outWins   = res->getInt("wins");
+			outWins = res->getInt("wins");
 			outLosses = res->getInt("losses");
 			return true;
 		}
