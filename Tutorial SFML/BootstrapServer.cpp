@@ -52,9 +52,9 @@ void BootstrapServer::Run()
         }
         for (auto& [roomID, room] : _rooms)
         {
-            if (room->waitingToStart && room->GetPlayers().size() >= 2)
+            if (room->waitingToStart && room->GetPlayers().size() >= MIN_PLAYERS_TO_START)
             {
-                if (room->startTimer.getElapsedTime().asSeconds() >= 10.f)
+                if (room->startTimer.getElapsedTime().asSeconds() >= MATCH_START_COUNTDOWN)
                 {
                     std::cout << "[Server] Timer expired, starting match for room: " << roomID << std::endl;
                     StartMatch(room.get());
@@ -214,7 +214,7 @@ void BootstrapServer::CreateRoom(Client* client, const std::string& roomID)
 
     // mando cuántos hay en la sala
     sf::Packet roomUpdate;
-    roomUpdate << "ROOM_UPDATE" << 1 << _rooms[finalRoomID]->GetMaxPlayers();
+    roomUpdate << "ROOM_UPDATE" << (short)1 << _rooms[finalRoomID]->GetMaxPlayers();
     client->GetSocket()->send(roomUpdate);
 
     std::cout << "[Server] Room created with ID: " << finalRoomID << '\n';
@@ -242,26 +242,40 @@ void BootstrapServer::JoinRoom(Client* client, const std::string& roomID)
 
         const auto& players = room->GetPlayers();
 
-        // topología estrella: solo mando la IP/puerto del host al que se une
+        // CAMBIO A MALLA
         sf::Packet response;
-        Client* host = players.front();
-        auto hostIp = host->GetSocket()->getRemoteAddress();
 
-        if (host != client && hostIp.has_value())
-        {
-            response << "JOIN_OK" << 1 << hostIp.value().toString() << host->GetP2PPort();
-        }
-        else
-        {
-            response << "JOIN_OK" << 0;
-        }
+        short numExisting = 0;
+        for (Client* p : players)
+            if (p != client) ++numExisting;
 
+        response << "JOIN_OK" << numExisting;
+        for (Client* p : players)
+        {
+            if (p == client) continue;
+            auto pIp = p->GetSocket()->getRemoteAddress();
+            if (pIp.has_value())
+                response << pIp.value().toString() << p->GetP2PPort();
+        }
         client->GetSocket()->send(response);
+
+        // Notifico a todos los existentes del nuevo peer
+        auto newIp = client->GetSocket()->getRemoteAddress();
+        if (newIp.has_value())
+        {
+            sf::Packet newPeerPacket;
+            newPeerPacket << "NEW_PEER" << newIp.value().toString() << client->GetP2PPort();
+            for (Client* p : players)
+            {
+                if (p != client)
+                    p->GetSocket()->send(newPeerPacket);
+            }
+        }
 
         // aviso a todos del número actual de jugadores
         {
-            int count  = static_cast<int>(room->GetPlayers().size());
-            int maxP   = room->GetMaxPlayers();
+            short count = static_cast<short>(room->GetPlayers().size());
+            short maxP  = room->GetMaxPlayers();
             for (Client* p : room->GetPlayers())
             {
                 sf::Packet updatePacket;
@@ -270,15 +284,15 @@ void BootstrapServer::JoinRoom(Client* client, const std::string& roomID)
             }
         }
 
-        int numPlayers = players.size();
+        short numPlayers = static_cast<short>(players.size());
 
-        if (numPlayers == 2 && !room->waitingToStart)
+        if (numPlayers == MIN_PLAYERS_TO_START && !room->waitingToStart)
         {
             room->waitingToStart = true;
             room->startTimer.restart();
             std::cout << "[Server] Room has 2 players, starting 10s countdown..." << std::endl;
         }
-        else if (numPlayers == 4)
+        else if (numPlayers == MAX_ROOM_PLAYERS)
         {
             std::cout << "[Server] Room full, starting immediately." << std::endl;
             StartMatch(room);
@@ -299,7 +313,7 @@ std::string BootstrapServer::GenerateRandomRoomID()
 {
     const std::string charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     std::string roomId;
-    for (int i = 0; i < 6; ++i)
+    for (short i = 0; i < ROOM_ID_LENGTH; ++i)
     {
         roomId += charset[rand() % charset.size()];
     }
@@ -316,13 +330,13 @@ void BootstrapServer::StartMatch(Room* room)
 
     auto playersCopy = room->GetPlayers();
 
-    for (int i = 0; i < playersCopy.size(); ++i)
+    for (short i = 0; i < static_cast<short>(playersCopy.size()); ++i)
     {
         sf::Packet packet;
         packet << "START_P2P";
 
-        int playerIndex = i;
-        int numPlayers = playersCopy.size();
+        short playerIndex = i;
+        short numPlayers  = static_cast<short>(playersCopy.size());
 
         packet << playerIndex << numPlayers;
 
@@ -341,7 +355,7 @@ void BootstrapServer::StartMatch(Room* room)
 
 // genera una clave única con los resultados para comparar entre clientes
 
-std::string BootstrapServer::BuildResultKey(const std::vector<std::pair<std::string, int>>& results) const
+std::string BootstrapServer::BuildResultKey(const std::vector<std::pair<std::string, short>>& results) const
 {
     auto sorted = results;
     std::sort(sorted.begin(), sorted.end(),
@@ -359,16 +373,16 @@ void BootstrapServer::HandleRankingCommand(Client* client, const std::string& co
 {
     if (command == "GAME_RESULT")
     {
-        int numPlayers;
+        short numPlayers;
         packet >> numPlayers;
 
-        std::vector<std::pair<std::string, int>> results;
-        for (int i = 0; i < numPlayers; ++i)
+        std::vector<std::pair<std::string, short>> results;
+        for (short i = 0; i < numPlayers; ++i)
         {
             std::string nick;
-            int pos;
+            short pos;
             packet >> nick >> pos;
-            results.push_back({nick, pos});
+            results.push_back({nick, static_cast<short>(pos)});
         }
 
         std::string key = BuildResultKey(results);
@@ -393,28 +407,32 @@ void BootstrapServer::HandleRankingCommand(Client* client, const std::string& co
         // Check if requesting player is already in the top 10
         bool inTop10 = false;
         for (const auto& e : topTen)
-            if (e.nickname == requestingNick) { inTop10 = true; break; }
+            if (e.nickname == requestingNick) 
+            { 
+                inTop10 = true; 
+                break; 
+            }
 
         sf::Packet response;
-        response << "RANKING_DATA" << static_cast<int>(topTen.size());
+        response << "RANKING_DATA" << static_cast<short>(topTen.size());
         for (const auto& e : topTen)
-            response << e.rank << e.nickname << e.points << e.wins << e.losses;
+            response << (short)e.rank << e.nickname << (short)e.points << (short)e.wins << (short)e.losses;
 
         if (!inTop10)
         {
-            int rank, pts, wins, losses;
+            short rank, pts, wins, losses;
             if (_db.GetPlayerRanking(requestingNick, rank, pts, wins, losses))
             {
-                response << 1 << rank << requestingNick << pts << wins << losses;
+                response << (short)1 << (short)rank << requestingNick << (short)pts << (short)wins << (short)losses;
             }
             else
             {
-                response << 0;
+                response << (short)0;
             }
         }
         else
         {
-            response << 0;
+            response << (short)0;
         }
 
         client->GetSocket()->send(response);

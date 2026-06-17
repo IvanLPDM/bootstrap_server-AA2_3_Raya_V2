@@ -3,14 +3,21 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
+
 #include "Client.h"
 #include "Room.h"
 #include "DataBaseManager.h"
 #include <string>
+#include <cstdint>
 
 class BootstrapServer {
 public:
-    BootstrapServer(unsigned short port = 50000);
+    static constexpr float   MATCH_START_COUNTDOWN = 10.f;
+    static constexpr short MIN_PLAYERS_TO_START  = 2;
+    static constexpr short MAX_ROOM_PLAYERS      = 4;
+    static constexpr short ROOM_ID_LENGTH        = 6;
+
+    BootstrapServer(unsigned short port = 55000);
     void Run();
 
 private:
@@ -31,13 +38,13 @@ private:
 
     std::string GenerateRandomRoomID();
     // clave con pos:nick de cada jugador, ordenada, para comparar resultados
-    std::string BuildResultKey(const std::vector<std::pair<std::string, int>>& results) const;
+    std::string BuildResultKey(const std::vector<std::pair<std::string, short>>& results) const;
 
     sf::TcpListener   _listener;
     sf::SocketSelector _selector;
     std::vector<std::unique_ptr<Client>> _clients;
     std::unordered_map<std::string, std::unique_ptr<Room>> _rooms;
     // cuántas veces se ha reportado cada resultado
-    std::unordered_map<std::string, int> _pendingResults;
+    std::unordered_map<std::string, short> _pendingResults;
     DataBaseManager _db;
 };

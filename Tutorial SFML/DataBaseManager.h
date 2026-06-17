@@ -6,14 +6,15 @@
 #include <cppconn/resultset.h>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 struct RankingEntry
 {
-    int rank;
+    short rank;
     std::string nickname;
-    int points;
-    int wins;
-    int losses;
+    short points;
+    short wins;
+    short losses;
 };
 
 class DataBaseManager
@@ -28,9 +29,9 @@ public:
     bool LoginUser(const std::string& nickname, const std::string& password);
 
     // ranking
-    void UpdateRanking(const std::vector<std::pair<std::string, int>>& results, int numPlayers);
+    void UpdateRanking(const std::vector<std::pair<std::string, short>>& results, short numPlayers);
     std::vector<RankingEntry> GetTopTenPlayers();
-    bool GetPlayerRanking(const std::string& nickname, int& outRank, int& outPoints, int& outWins, int& outLosses);
+    bool GetPlayerRanking(const std::string& nickname, short& outRank, short& outPoints, short& outWins, short& outLosses);
 
 private:
     sql::Driver* _driver;

@@ -7,10 +7,10 @@
 #define USERNAME "Ivan"
 #define PASSWORD "1234"
 
-static constexpr int RANKING_POINTS_1ST		= 4;
-static constexpr int RANKING_POINTS_2ND		= 2;
-static constexpr int RANKING_POINTS_3RD		= 1;
-static constexpr int RANKING_POINTS_LAST	= 0;
+static constexpr short RANKING_POINTS_1ST		= 4;
+static constexpr short RANKING_POINTS_2ND		= 2;
+static constexpr short RANKING_POINTS_3RD		= 1;
+static constexpr short	 RANKING_POINTS_LAST	= 0;
 
 DataBaseManager::DataBaseManager()
 {
@@ -114,16 +114,16 @@ bool DataBaseManager::LoginUser(const std::string& nickname, const std::string& 
 
 // actualiza puntos, victorias y derrotas según la posición final
 
-void DataBaseManager::UpdateRanking(const std::vector<std::pair<std::string, int>>& results, int numPlayers)
+void DataBaseManager::UpdateRanking(const std::vector<std::pair<std::string, short>>& results, short numPlayers)
 {
-	static constexpr int POINTS_TABLE[] = { RANKING_POINTS_1ST, RANKING_POINTS_2ND, RANKING_POINTS_3RD, RANKING_POINTS_LAST };
+	static constexpr short POINTS_TABLE[] = { RANKING_POINTS_1ST, RANKING_POINTS_2ND, RANKING_POINTS_3RD, RANKING_POINTS_LAST };
 
 	for (const auto& [nickname, finishPos] : results)
 	{
-		int idx    = std::min(finishPos - 1, 3);
-		int pts    = (finishPos == numPlayers) ? RANKING_POINTS_LAST : POINTS_TABLE[idx];
-		int isWin  = (finishPos == 1) ? 1 : 0;
-		int isLoss = (finishPos == numPlayers) ? 1 : 0;
+		short idx    = std::min(finishPos - 1, 3);
+		short pts    = (finishPos == numPlayers) ? RANKING_POINTS_LAST : POINTS_TABLE[idx];
+		short isWin  = (finishPos == 1) ? 1 : 0;
+		short isLoss = (finishPos == numPlayers) ? 1 : 0;
 
 		try {
 			std::unique_ptr<sql::PreparedStatement> stmt(_con->prepareStatement(
@@ -152,7 +152,7 @@ std::vector<RankingEntry> DataBaseManager::GetTopTenPlayers()
 			"SELECT nickname, points, wins, losses FROM users ORDER BY points DESC LIMIT 10"));
 		std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
 
-		int rank = 1;
+		short rank = 1;
 		while (res->next())
 		{
 			RankingEntry e;
@@ -172,7 +172,7 @@ std::vector<RankingEntry> DataBaseManager::GetTopTenPlayers()
 
 // devuelve el ranking y stats de un jugador concreto
 
-bool DataBaseManager::GetPlayerRanking(const std::string& nickname, int& outRank, int& outPoints, int& outWins, int& outLosses)
+bool DataBaseManager::GetPlayerRanking(const std::string& nickname, short& outRank, short& outPoints, short& outWins, short& outLosses)
 {
 	try {
 		// rango = jugadores con más puntos + 1
